@@ -1,0 +1,1681 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>活動報名與任務累積系統</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* 登入界面 */
+        .login-screen {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 500px;
+            margin: 100px auto;
+        }
+
+        .login-screen h1 {
+            color: #667eea;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .login-buttons {
+            display: flex;
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .login-buttons button {
+            flex: 1;
+            padding: 15px;
+            font-size: 16px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .login-buttons button:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-admin {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-user {
+            background: #764ba2;
+            color: white;
+        }
+
+        input[type="text"], input[type="number"], input[type="datetime-local"], textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        /* 頂部導航 */
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 20px 30px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .header h2 {
+            color: #667eea;
+        }
+
+        .header .user-info {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        /* 任務進度 Banner */
+        .task-banner {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            color: white;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+
+        .task-banner h3 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .progress-bar-container {
+            background: rgba(255,255,255,0.3);
+            border-radius: 20px;
+            height: 30px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            height: 100%;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .achievement-stamp {
+            display: inline-block;
+            background: #ffd700;
+            color: #333;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            margin-top: 10px;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* 按鈕樣式 */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #ed8936;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #a0aec0;
+            color: white;
+        }
+
+        /* 卡片樣式 */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+            position: relative;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+
+        .card-title {
+            font-size: 20px;
+            color: #2d3748;
+            font-weight: bold;
+        }
+
+        .card-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .badge-online {
+            background: #bee3f8;
+            color: #2c5282;
+        }
+
+        .badge-onsite {
+            background: #c6f6d5;
+            color: #276749;
+        }
+
+        .badge-task {
+            background: #fbd38d;
+            color: #7c2d12;
+        }
+
+        .winner-badge {
+            background: #ffd700;
+            color: #333;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+
+        .card-content {
+            color: #718096;
+            margin: 15px 0;
+            line-height: 1.6;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        /* 管理者表格 */
+        .admin-table {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        tr:hover {
+            background: #f7fafc;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            color: #667eea;
+            font-size: 24px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #a0aec0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #2d3748;
+            font-weight: 600;
+        }
+
+        /* 隱藏類 */
+        .hidden {
+            display: none !important;
+        }
+
+        /* 狀態標籤 */
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-approved {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-rejected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* 重置按鈕 */
+        .reset-btn {
+            background: #ef4444;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .reset-btn:hover {
+            background: #dc2626;
+        }
+
+        /* 統計信息 */
+        .stats-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #718096;
+            margin-top: 5px;
+        }
+
+        .info-text {
+            background: #e6fffa;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+            color: #234e52;
+            border-left: 4px solid #38b2ac;
+        }
+
+        .warning-text {
+            background: #fffbeb;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+            color: #78350f;
+            border-left: 4px solid #f59e0b;
+        }
+
+        /* 點數顯示 */
+        .points-display {
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            color: #333;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 18px;
+            display: inline-block;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 220px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 8px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -110px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+        }
+
+        .tooltip .tooltiptext::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #555 transparent transparent transparent;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .btn:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .btn-claim {
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            color: #333;
+            font-weight: bold;
+        }
+
+        .btn-claim:hover:not(:disabled) {
+            background: linear-gradient(135deg, #ffed4e 0%, #ffd700 100%);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 登入畫面 -->
+        <div id="loginScreen" class="login-screen">
+            <h1>🎯 活動報名與任務系統</h1>
+            <div class="form-group">
+                <label>請選擇身份：</label>
+                <div class="login-buttons">
+                    <button class="btn-admin" onclick="loginAsAdmin()">👨‍💼 管理者</button>
+                    <button class="btn-user" onclick="showUserLogin()">👤 使用者</button>
+                </div>
+            </div>
+            <div id="userLoginForm" class="hidden">
+                <div class="form-group">
+                    <label>使用者 ID：</label>
+                    <input type="text" id="userIdInput" placeholder="請輸入您的使用者 ID">
+                </div>
+                <button class="btn btn-primary" style="width: 100%;" onclick="loginAsUser()">登入</button>
+            </div>
+        </div>
+
+        <!-- 管理者介面 -->
+        <div id="adminScreen" class="hidden">
+            <div class="header">
+                <h2>👨‍💼 管理者控制台</h2>
+                <div class="user-info">
+                    <button class="btn btn-primary" onclick="showAddEventModal()">➕ 新增活動</button>
+                    <button class="reset-btn" onclick="resetAllData()">🗑️ 清除所有資料</button>
+                    <button class="btn btn-secondary" onclick="logout()">登出</button>
+                </div>
+            </div>
+
+            <!-- 統計卡片 -->
+            <div class="stats-card">
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalEvents">0</div>
+                        <div class="stat-label">總活動數</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalRegistrations">0</div>
+                        <div class="stat-label">總報名數</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="pendingApprovals">0</div>
+                        <div class="stat-label">待審核</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 活動列表 -->
+            <div id="adminEventsList"></div>
+        </div>
+
+        <!-- 使用者介面 -->
+        <div id="userScreen" class="hidden">
+            <div class="header">
+                <h2>👤 歡迎，<span id="currentUserId"></span></h2>
+                <div class="user-info">
+                    <div class="points-display">💰 點數: <span id="userPoints">0</span></div>
+                    <button class="btn btn-secondary" onclick="logout()">登出</button>
+                </div>
+            </div>
+
+            <!-- 任務進度 Banner -->
+            <div id="taskBanner" class="hidden"></div>
+
+            <!-- 進行中的活動 -->
+            <div style="margin-bottom: 30px;">
+                <h3 style="color: white; margin-bottom: 15px; font-size: 20px;">📌 進行中的活動</h3>
+                <div id="userEventsList" class="cards-grid"></div>
+            </div>
+
+            <!-- 歷史活動 -->
+            <div id="historySection" class="hidden" style="margin-top: 30px;">
+                <h3 style="color: white; margin-bottom: 15px; font-size: 20px;">📚 歷史活動</h3>
+                <div id="historyEventsList" class="cards-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新增/編輯活動 Modal -->
+    <div id="eventModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">新增活動</h3>
+                <button class="close-btn" onclick="closeEventModal()">&times;</button>
+            </div>
+            <form id="eventForm">
+                <input type="hidden" id="editEventId">
+
+                <div class="form-group">
+                    <label>活動類型：</label>
+                    <select id="eventType" onchange="handleEventTypeChange()">
+                        <option value="Online">線上活動 (Online)</option>
+                        <option value="OnSite">實體活動 (OnSite)</option>
+                        <option value="Task">任務累積 (Task)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>活動標題：</label>
+                    <input type="text" id="eventTitle" required>
+                </div>
+
+                <div class="form-group">
+                    <label>活動說明：</label>
+                    <textarea id="eventDescription" rows="4"></textarea>
+                </div>
+
+                <!-- Online 專屬 -->
+                <div class="form-group event-field online-field">
+                    <label>連結：</label>
+                    <input type="text" id="eventLink">
+                </div>
+
+                <div class="form-group event-field online-field">
+                    <label>報名開始時間：</label>
+                    <input type="datetime-local" id="onlineRegistrationStartTime">
+                </div>
+
+                <div class="form-group event-field online-field">
+                    <label>報名結束時間：</label>
+                    <input type="datetime-local" id="onlineRegistrationEndTime">
+                </div>
+
+                <div class="form-group event-field online-field">
+                    <label>抽獎名額：</label>
+                    <input type="number" id="drawSlots" min="0" value="0">
+                </div>
+
+                <div class="form-group event-field online-field">
+                    <label>抽獎開始時間：</label>
+                    <input type="datetime-local" id="drawTime">
+                </div>
+
+                <!-- OnSite 專屬 -->
+                <div class="form-group event-field onsite-field">
+                    <label>活動地點：</label>
+                    <input type="text" id="eventLocation">
+                </div>
+
+                <div class="form-group event-field onsite-field">
+                    <label>報名開始時間：</label>
+                    <input type="datetime-local" id="registrationStartTime">
+                </div>
+
+                <div class="form-group event-field onsite-field">
+                    <label>報名結束時間：</label>
+                    <input type="datetime-local" id="registrationEndTime">
+                </div>
+
+                <div class="form-group event-field onsite-field">
+                    <label>簽到開始時間：</label>
+                    <input type="datetime-local" id="checkinStartTime">
+                </div>
+
+                <div class="form-group event-field onsite-field">
+                    <label>簽到結束時間：</label>
+                    <input type="datetime-local" id="checkinEndTime">
+                </div>
+
+                <!-- Task 專屬 -->
+                <div class="form-group event-field task-field hidden">
+                    <label>任務開始時間：</label>
+                    <input type="datetime-local" id="taskStartTime">
+                </div>
+
+                <div class="form-group event-field task-field hidden">
+                    <label>任務結束時間：</label>
+                    <input type="datetime-local" id="taskEndTime">
+                </div>
+
+                <div class="form-group event-field task-field hidden">
+                    <label>目標參加次數：</label>
+                    <input type="number" id="taskGoal" min="1" value="5">
+                </div>
+
+                <div class="form-group event-field task-field hidden">
+                    <label>獎勵點數：</label>
+                    <input type="number" id="taskPoints" min="0" value="100">
+                </div>
+
+                <div id="taskWarning" class="warning-text hidden">
+                    ⚠️ 系統已存在一個任務累積活動，目前無法新增第二個。
+                </div>
+
+                <div class="card-actions">
+                    <button type="submit" class="btn btn-primary">儲存</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeEventModal()">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 報名明細 Modal -->
+    <div id="registrationsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>報名明細</h3>
+                <button class="close-btn" onclick="closeRegistrationsModal()">&times;</button>
+            </div>
+            <div id="registrationsContent"></div>
+        </div>
+    </div>
+
+    <!-- 活動詳情 Modal -->
+    <div id="eventDetailModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="detailTitle"></h3>
+                <button class="close-btn" onclick="closeEventDetailModal()">&times;</button>
+            </div>
+            <div id="eventDetailContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 資料模型 ====================
+        let currentUser = null;
+        let currentRole = null;
+
+        // 初始化 LocalStorage
+        function initStorage() {
+            if (!localStorage.getItem('events')) {
+                localStorage.setItem('events', JSON.stringify([]));
+            }
+            if (!localStorage.getItem('registrations')) {
+                localStorage.setItem('registrations', JSON.stringify([]));
+            }
+            if (!localStorage.getItem('userPoints')) {
+                localStorage.setItem('userPoints', JSON.stringify({}));
+            }
+            if (!localStorage.getItem('taskClaims')) {
+                localStorage.setItem('taskClaims', JSON.stringify({}));
+            }
+        }
+
+        function getEvents() {
+            return JSON.parse(localStorage.getItem('events') || '[]');
+        }
+
+        function saveEvents(events) {
+            localStorage.setItem('events', JSON.stringify(events));
+        }
+
+        function getRegistrations() {
+            return JSON.parse(localStorage.getItem('registrations') || '[]');
+        }
+
+        function saveRegistrations(registrations) {
+            localStorage.setItem('registrations', JSON.stringify(registrations));
+        }
+
+        function getUserPoints(userId) {
+            const points = JSON.parse(localStorage.getItem('userPoints') || '{}');
+            return points[userId] || 0;
+        }
+
+        function saveUserPoints(userId, points) {
+            const allPoints = JSON.parse(localStorage.getItem('userPoints') || '{}');
+            allPoints[userId] = points;
+            localStorage.setItem('userPoints', JSON.stringify(allPoints));
+        }
+
+        function getTaskClaims(userId) {
+            const claims = JSON.parse(localStorage.getItem('taskClaims') || '{}');
+            return claims[userId] || {};
+        }
+
+        function saveTaskClaim(userId, taskId) {
+            const claims = JSON.parse(localStorage.getItem('taskClaims') || '{}');
+            if (!claims[userId]) claims[userId] = {};
+            claims[userId][taskId] = true;
+            localStorage.setItem('taskClaims', JSON.stringify(claims));
+        }
+
+        // ==================== 登入系統 ====================
+        function loginAsAdmin() {
+            currentRole = 'admin';
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('adminScreen').classList.remove('hidden');
+            renderAdminScreen();
+        }
+
+        function showUserLogin() {
+            document.getElementById('userLoginForm').classList.remove('hidden');
+        }
+
+        function loginAsUser() {
+            const userId = document.getElementById('userIdInput').value.trim();
+            if (!userId) {
+                alert('請輸入使用者 ID');
+                return;
+            }
+            currentUser = userId;
+            currentRole = 'user';
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('userScreen').classList.remove('hidden');
+            document.getElementById('currentUserId').textContent = userId;
+            renderUserScreen();
+        }
+
+        function logout() {
+            currentUser = null;
+            currentRole = null;
+            document.getElementById('adminScreen').classList.add('hidden');
+            document.getElementById('userScreen').classList.add('hidden');
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('userLoginForm').classList.add('hidden');
+            document.getElementById('userIdInput').value = '';
+        }
+
+        function resetAllData() {
+            if (confirm('確定要清除所有資料嗎？此操作無法復原！')) {
+                localStorage.clear();
+                initStorage();
+                renderAdminScreen();
+                alert('所有資料已清除');
+            }
+        }
+
+        // ==================== 任務統計邏輯 ====================
+        function calculateUserTaskProgress(userId, taskEvent) {
+            const registrations = getRegistrations();
+            const events = getEvents();
+
+            const taskStartTime = taskEvent.startTime ? new Date(taskEvent.startTime).getTime() : 0;
+            const taskEndTime = taskEvent.endTime ? new Date(taskEvent.endTime).getTime() : Infinity;
+
+            let count = 0;
+            registrations.forEach(reg => {
+                if (reg.userName !== userId) return;
+
+                const event = events.find(e => e.id === reg.eventId);
+                if (!event || event.type === 'Task') return;
+
+                // 檢查活動是否在任務時間區間內
+                let activityTime = null;
+                if (event.type === 'Online' && reg.status === 'approved') {
+                    activityTime = reg.approvedTime ? new Date(reg.approvedTime).getTime() : new Date(reg.timestamp).getTime();
+                    if (activityTime >= taskStartTime && activityTime <= taskEndTime) {
+                        count++;
+                    }
+                } else if (event.type === 'OnSite' && reg.status === 'approved' && reg.checkedIn) {
+                    activityTime = reg.checkedInTime ? new Date(reg.checkedInTime).getTime() : new Date(reg.timestamp).getTime();
+                    if (activityTime >= taskStartTime && activityTime <= taskEndTime) {
+                        count++;
+                    }
+                }
+            });
+
+            return count;
+        }
+
+        // ==================== 管理者介面 ====================
+        function renderAdminScreen() {
+            const events = getEvents();
+            const registrations = getRegistrations();
+
+            // 統計數據
+            document.getElementById('totalEvents').textContent = events.length;
+            document.getElementById('totalRegistrations').textContent = registrations.length;
+            document.getElementById('pendingApprovals').textContent =
+                registrations.filter(r => r.status === 'pending').length;
+
+            // 活動列表
+            const container = document.getElementById('adminEventsList');
+            container.innerHTML = '';
+
+            events.forEach(event => {
+                const card = document.createElement('div');
+                card.className = 'admin-table';
+
+                const eventRegs = registrations.filter(r => r.eventId === event.id);
+
+                let typeInfo = '';
+                if (event.type === 'Online') {
+                    typeInfo = `<p>📍 連結: ${event.link || '未設定'}</p>
+                                <p>🎁 抽獎名額: ${event.drawSlots || 0}</p>
+                                <p>⏰ 抽獎開始: ${event.drawTime ? new Date(event.drawTime).toLocaleString('zh-TW') : '未設定'}</p>`;
+                } else if (event.type === 'OnSite') {
+                    typeInfo = `<p>📍 地點: ${event.location || '未設定'}</p>
+                                <p>📅 報名時間: ${event.registrationStartTime ? new Date(event.registrationStartTime).toLocaleString('zh-TW') : '未設定'} ~ ${event.registrationEndTime ? new Date(event.registrationEndTime).toLocaleString('zh-TW') : '未設定'}</p>
+                                <p>⏰ 簽到時間: ${event.checkinStartTime ? new Date(event.checkinStartTime).toLocaleString('zh-TW') : '未設定'} ~ ${event.checkinEndTime ? new Date(event.checkinEndTime).toLocaleString('zh-TW') : '未設定'}</p>`;
+                } else if (event.type === 'Task') {
+                    typeInfo = `<p>📅 任務時間: ${event.startTime ? new Date(event.startTime).toLocaleString('zh-TW') : '未設定'} ~ ${event.endTime ? new Date(event.endTime).toLocaleString('zh-TW') : '未設定'}</p>
+                                <p>🎯 目標次數: ${event.taskGoal}</p>
+                                <p>⭐ 獎勵點數: ${event.taskPoints}</p>`;
+                }
+
+                card.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px;">
+                        <div>
+                            <h3 style="color: #667eea;">${event.title}</h3>
+                            <span class="card-badge badge-${event.type.toLowerCase()}">${event.type}</span>
+                            <p style="color: #718096; margin-top: 10px;">${event.description}</p>
+                            ${typeInfo}
+                            ${event.type === 'Online' && event.registrationEndTime ? `<p style="color: #9ca3af; font-size: 12px;">🕐 報名截止: ${new Date(event.registrationEndTime).toLocaleString('zh-TW')}</p>` : ''}
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            ${event.type !== 'Task' ? `
+                                <button class="btn btn-primary" onclick="viewRegistrations('${event.id}')">
+                                    報名明細 (${eventRegs.length})
+                                </button>
+                                ${event.type === 'Online' && event.drawSlots > 0 ? (() => {
+                                    const canDraw = !event.registrationEndTime || new Date() >= new Date(event.registrationEndTime);
+                                    const drawExecuted = event.lastDrawTime;
+                                    const btnDisabled = !canDraw || drawExecuted;
+                                    const tooltipText = drawExecuted ? '抽獎已執行' :
+                                                       !canDraw ? `報名尚未結束（截止時間：${new Date(event.registrationEndTime).toLocaleString('zh-TW')}）` :
+                                                       '可執行抽獎';
+                                    return `
+                                        <div class="tooltip">
+                                            <button class="btn btn-warning" onclick="executeDraw('${event.id}')" ${btnDisabled ? 'disabled' : ''}>執行抽獎</button>
+                                            <span class="tooltiptext">${tooltipText}</span>
+                                        </div>
+                                    `;
+                                })() : ''}
+                            ` : '<span style="color: #9ca3af;">（系統自動統計）</span>'}
+                            <button class="btn btn-secondary" onclick="editEvent('${event.id}')">編輯</button>
+                            <button class="btn btn-danger" onclick="deleteEvent('${event.id}')">刪除</button>
+                        </div>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        function showAddEventModal() {
+            document.getElementById('modalTitle').textContent = '新增活動';
+            document.getElementById('eventForm').reset();
+            document.getElementById('editEventId').value = '';
+            handleEventTypeChange();
+            document.getElementById('eventModal').classList.add('active');
+        }
+
+        function editEvent(eventId) {
+            const events = getEvents();
+            const event = events.find(e => e.id === eventId);
+            if (!event) return;
+
+            document.getElementById('modalTitle').textContent = '編輯活動';
+            document.getElementById('editEventId').value = eventId;
+            document.getElementById('eventType').value = event.type;
+            document.getElementById('eventTitle').value = event.title;
+            document.getElementById('eventDescription').value = event.description;
+
+            if (event.type === 'Online') {
+                document.getElementById('eventLink').value = event.link || '';
+                document.getElementById('onlineRegistrationStartTime').value = event.registrationStartTime || '';
+                document.getElementById('onlineRegistrationEndTime').value = event.registrationEndTime || '';
+                document.getElementById('drawSlots').value = event.drawSlots || 0;
+                document.getElementById('drawTime').value = event.drawTime || '';
+            } else if (event.type === 'OnSite') {
+                document.getElementById('eventLocation').value = event.location || '';
+                document.getElementById('registrationStartTime').value = event.registrationStartTime || '';
+                document.getElementById('registrationEndTime').value = event.registrationEndTime || '';
+                document.getElementById('checkinStartTime').value = event.checkinStartTime || '';
+                document.getElementById('checkinEndTime').value = event.checkinEndTime || '';
+            } else if (event.type === 'Task') {
+                document.getElementById('taskStartTime').value = event.startTime || '';
+                document.getElementById('taskEndTime').value = event.endTime || '';
+                document.getElementById('taskGoal').value = event.taskGoal || 5;
+                document.getElementById('taskPoints').value = event.taskPoints || 100;
+            }
+
+            handleEventTypeChange();
+            document.getElementById('eventModal').classList.add('active');
+        }
+
+        function deleteEvent(eventId) {
+            if (!confirm('確定要刪除此活動嗎？')) return;
+
+            let events = getEvents();
+            events = events.filter(e => e.id !== eventId);
+            saveEvents(events);
+
+            // 刪除相關報名
+            let registrations = getRegistrations();
+            registrations = registrations.filter(r => r.eventId !== eventId);
+            saveRegistrations(registrations);
+
+            renderAdminScreen();
+        }
+
+        function handleEventTypeChange() {
+            const type = document.getElementById('eventType').value;
+            const events = getEvents();
+            const editingId = document.getElementById('editEventId').value;
+
+            // 隱藏所有類型特定欄位
+            document.querySelectorAll('.event-field').forEach(field => {
+                field.classList.add('hidden');
+            });
+
+            // 顯示對應類型欄位
+            if (type === 'Online') {
+                document.querySelectorAll('.online-field').forEach(field => {
+                    field.classList.remove('hidden');
+                });
+                document.getElementById('taskWarning').classList.add('hidden');
+            } else if (type === 'OnSite') {
+                document.querySelectorAll('.onsite-field').forEach(field => {
+                    field.classList.remove('hidden');
+                });
+                document.getElementById('taskWarning').classList.add('hidden');
+            } else if (type === 'Task') {
+                document.querySelectorAll('.task-field').forEach(field => {
+                    field.classList.remove('hidden');
+                });
+
+                // 檢查是否已有任務（編輯時排除自己）
+                const existingTask = events.find(e => e.type === 'Task' && e.id !== editingId);
+                if (existingTask) {
+                    document.getElementById('taskWarning').classList.remove('hidden');
+                } else {
+                    document.getElementById('taskWarning').classList.add('hidden');
+                }
+            }
+        }
+
+        function closeEventModal() {
+            document.getElementById('eventModal').classList.remove('active');
+        }
+
+        document.getElementById('eventForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const events = getEvents();
+            const editingId = document.getElementById('editEventId').value;
+            const type = document.getElementById('eventType').value;
+
+            // 檢查任務唯一性
+            if (type === 'Task' && !editingId) {
+                const existingTask = events.find(e => e.type === 'Task');
+                if (existingTask) {
+                    alert('系統已存在一個任務累積活動，無法新增第二個！');
+                    return;
+                }
+            }
+
+            const eventData = {
+                id: editingId || 'evt_' + Date.now(),
+                type: type,
+                title: document.getElementById('eventTitle').value,
+                description: document.getElementById('eventDescription').value,
+            };
+
+            if (type === 'Online') {
+                eventData.link = document.getElementById('eventLink').value;
+                eventData.registrationStartTime = document.getElementById('onlineRegistrationStartTime').value;
+                eventData.registrationEndTime = document.getElementById('onlineRegistrationEndTime').value;
+                eventData.drawSlots = parseInt(document.getElementById('drawSlots').value) || 0;
+                eventData.drawTime = document.getElementById('drawTime').value;
+                eventData.lastDrawTime = editingId ? events.find(e => e.id === editingId)?.lastDrawTime || '' : '';
+            } else if (type === 'OnSite') {
+                eventData.location = document.getElementById('eventLocation').value;
+                eventData.registrationStartTime = document.getElementById('registrationStartTime').value;
+                eventData.registrationEndTime = document.getElementById('registrationEndTime').value;
+                eventData.checkinStartTime = document.getElementById('checkinStartTime').value;
+                eventData.checkinEndTime = document.getElementById('checkinEndTime').value;
+            } else if (type === 'Task') {
+                eventData.startTime = document.getElementById('taskStartTime').value;
+                eventData.endTime = document.getElementById('taskEndTime').value;
+                eventData.taskGoal = parseInt(document.getElementById('taskGoal').value) || 5;
+                eventData.taskPoints = parseInt(document.getElementById('taskPoints').value) || 100;
+            }
+
+            if (editingId) {
+                const index = events.findIndex(e => e.id === editingId);
+                events[index] = eventData;
+            } else {
+                events.push(eventData);
+            }
+
+            saveEvents(events);
+            closeEventModal();
+            renderAdminScreen();
+        });
+
+        // ==================== 報名管理 ====================
+        function viewRegistrations(eventId) {
+            const events = getEvents();
+            const event = events.find(e => e.id === eventId);
+            if (!event) return;
+
+            const registrations = getRegistrations().filter(r => r.eventId === eventId);
+
+            let html = '<div class="admin-table"><table><thead><tr>';
+            html += '<th>使用者 ID</th>';
+            html += '<th>報名時間</th>';
+            html += '<th>狀態</th>';
+            if (event.type === 'OnSite') {
+                html += '<th>核准時間</th>';
+                html += '<th>簽到狀態</th>';
+                html += '<th>簽到時間</th>';
+            }
+            html += '<th>中獎</th>';
+            html += '<th>操作</th>';
+            html += '</tr></thead><tbody>';
+
+            registrations.forEach(reg => {
+                html += '<tr>';
+                html += `<td>${reg.userName}</td>`;
+                html += `<td>${new Date(reg.timestamp).toLocaleString('zh-TW')}</td>`;
+                html += `<td><span class="status-badge status-${reg.status}">${
+                    reg.status === 'pending' ? '待審核' :
+                    reg.status === 'approved' ? '已核准' : '已拒絕'
+                }</span></td>`;
+
+                if (event.type === 'OnSite') {
+                    html += `<td>${reg.approvedTime ? new Date(reg.approvedTime).toLocaleString('zh-TW') : '-'}</td>`;
+                    html += `<td>${reg.checkedIn ? '✅ 已簽到' : '⏳ 未簽到'}</td>`;
+                    html += `<td>${reg.checkedInTime ? new Date(reg.checkedInTime).toLocaleString('zh-TW') : '-'}</td>`;
+                }
+
+                html += `<td>${reg.isWinner ? '🎉 中獎' : '-'}</td>`;
+                html += `<td>`;
+
+                if (reg.status === 'pending') {
+                    html += `<button class="btn btn-success" onclick="approveRegistration('${eventId}', '${reg.userName}')">核准</button> `;
+                    html += `<button class="btn btn-danger" onclick="rejectRegistration('${eventId}', '${reg.userName}')">拒絕</button>`;
+                }
+
+                html += `</td></tr>`;
+            });
+
+            html += '</tbody></table></div>';
+
+            document.getElementById('registrationsContent').innerHTML = html;
+            document.getElementById('registrationsModal').classList.add('active');
+        }
+
+        function closeRegistrationsModal() {
+            document.getElementById('registrationsModal').classList.remove('active');
+        }
+
+        function approveRegistration(eventId, userName) {
+            const registrations = getRegistrations();
+            const reg = registrations.find(r => r.eventId === eventId && r.userName === userName);
+            if (reg) {
+                reg.status = 'approved';
+                reg.approvedTime = new Date().toISOString();
+                saveRegistrations(registrations);
+                viewRegistrations(eventId);
+            }
+        }
+
+        function rejectRegistration(eventId, userName) {
+            const registrations = getRegistrations();
+            const reg = registrations.find(r => r.eventId === eventId && r.userName === userName);
+            if (reg) {
+                reg.status = 'rejected';
+                saveRegistrations(registrations);
+                viewRegistrations(eventId);
+            }
+        }
+
+        // ==================== 抽獎功能 ====================
+        function executeDraw(eventId) {
+            const events = getEvents();
+            const event = events.find(e => e.id === eventId);
+            if (!event || event.drawSlots <= 0) return;
+
+            // 檢查報名是否已結束
+            if (event.registrationEndTime && new Date() < new Date(event.registrationEndTime)) {
+                alert(`報名尚未結束，無法抽獎！\n報名截止時間：${new Date(event.registrationEndTime).toLocaleString('zh-TW')}`);
+                return;
+            }
+
+            // 檢查是否已執行過抽獎
+            if (event.lastDrawTime) {
+                alert('此活動已執行過抽獎！');
+                return;
+            }
+
+            const registrations = getRegistrations();
+            const eligibleRegs = registrations.filter(r =>
+                r.eventId === eventId &&
+                r.status === 'approved' &&
+                !r.isWinner
+            );
+
+            if (eligibleRegs.length === 0) {
+                alert('沒有符合資格的參與者！');
+                return;
+            }
+
+            const winnerCount = Math.min(event.drawSlots, eligibleRegs.length);
+            if (!confirm(`將抽出 ${winnerCount} 位中獎者，確定執行？`)) return;
+
+            // 隨機抽選
+            const shuffled = eligibleRegs.sort(() => 0.5 - Math.random());
+            const winners = shuffled.slice(0, winnerCount);
+
+            winners.forEach(winner => {
+                winner.isWinner = true;
+            });
+
+            // 記錄抽獎執行時間
+            event.lastDrawTime = new Date().toISOString();
+            saveEvents(events);
+            saveRegistrations(registrations);
+
+            alert(`抽獎完成！共 ${winnerCount} 位中獎者`);
+            renderAdminScreen();
+        }
+
+        // ==================== 使用者介面 ====================
+        function isEventExpired(event) {
+            const now = new Date();
+
+            if (event.type === 'Online') {
+                // Online 活動：如果已執行抽獎或報名時間已過(如果有設定)
+                return event.lastDrawTime !== undefined && event.lastDrawTime !== '';
+            } else if (event.type === 'OnSite') {
+                // OnSite 活動：簽到結束時間已過
+                if (event.checkinEndTime) {
+                    return now > new Date(event.checkinEndTime);
+                }
+                // 如果沒有簽到時間，檢查報名結束時間
+                if (event.registrationEndTime) {
+                    return now > new Date(event.registrationEndTime);
+                }
+            }
+            return false;
+        }
+
+        function renderUserScreen() {
+            const events = getEvents();
+            const registrations = getRegistrations();
+
+            // 更新點數顯示
+            const userPoints = getUserPoints(currentUser);
+            document.getElementById('userPoints').textContent = userPoints;
+
+            // 任務進度 Banner - 只顯示未過期的任務
+            const taskEvent = events.find(e => e.type === 'Task');
+            const taskBanner = document.getElementById('taskBanner');
+
+            if (taskEvent) {
+                const now = new Date();
+                const taskEnd = taskEvent.endTime ? new Date(taskEvent.endTime) : null;
+                const isTaskExpired = taskEnd && now > taskEnd;
+
+                // 如果任務已過期，不顯示 Banner
+                if (isTaskExpired) {
+                    taskBanner.classList.add('hidden');
+                } else {
+                    const userProgress = calculateUserTaskProgress(currentUser, taskEvent);
+                    const percentage = Math.min(100, (userProgress / taskEvent.taskGoal) * 100);
+                    const isCompleted = userProgress >= taskEvent.taskGoal;
+                    const claims = getTaskClaims(currentUser);
+                    const hasClaimed = claims[taskEvent.id];
+
+                    const taskStart = taskEvent.startTime ? new Date(taskEvent.startTime) : null;
+                    const isTaskActive = (!taskStart || now >= taskStart) && (!taskEnd || now <= taskEnd);
+
+                    let timeInfo = '';
+                    if (taskStart && taskEnd) {
+                        timeInfo = `<p style="font-size: 14px;">📅 任務期間: ${taskStart.toLocaleDateString('zh-TW')} ~ ${taskEnd.toLocaleDateString('zh-TW')}</p>`;
+                    }
+
+                    taskBanner.classList.remove('hidden');
+                    taskBanner.innerHTML = `
+                        <h3>🎯 ${taskEvent.title}</h3>
+                        <p>${taskEvent.description}</p>
+                        ${timeInfo}
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" style="width: ${percentage}%">
+                                ${userProgress} / ${taskEvent.taskGoal}
+                            </div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                            <span>目前進度: ${userProgress} 次參與</span>
+                            <span>獎勵: ${taskEvent.taskPoints} 點</span>
+                        </div>
+                        ${isCompleted ? `
+                            <div style="margin-top: 15px;">
+                                <div class="achievement-stamp">🏆 任務達成！</div>
+                                ${!hasClaimed ? `
+                                    <button class="btn btn-claim" onclick="claimTaskReward('${taskEvent.id}', ${taskEvent.taskPoints})" style="margin-top: 10px;">
+                                        🎁 領取 ${taskEvent.taskPoints} 點獎勵
+                                    </button>
+                                ` : '<p style="color: #ffd700; margin-top: 10px;">✅ 獎勵已領取</p>'}
+                            </div>
+                        ` : ''}
+                        ${!isTaskActive ? '<p style="color: #ffd700; margin-top: 10px;">⏰ 任務尚未開始</p>' : ''}
+                    `;
+                }
+            } else {
+                taskBanner.classList.add('hidden');
+            }
+
+            // 活動列表 - 分為進行中和歷史
+            const container = document.getElementById('userEventsList');
+            const historyContainer = document.getElementById('historyEventsList');
+            const historySection = document.getElementById('historySection');
+            container.innerHTML = '';
+            historyContainer.innerHTML = '';
+
+            const userEvents = events.filter(e => e.type !== 'Task');
+            const activeEvents = userEvents.filter(e => !isEventExpired(e));
+            const expiredEvents = userEvents.filter(e => isEventExpired(e));
+
+            // 渲染進行中的活動
+            activeEvents.forEach(event => {
+                const userReg = registrations.find(r =>
+                    r.eventId === event.id && r.userName === currentUser
+                );
+
+                const card = document.createElement('div');
+                card.className = 'card';
+
+                let statusInfo = '';
+                let actionButtons = '';
+
+                if (userReg) {
+                    if (userReg.isWinner) {
+                        statusInfo = '<div class="winner-badge">🎉 您已中獎！</div>';
+                    }
+
+                    if (userReg.status === 'pending') {
+                        statusInfo += '<div class="info-text">⏳ 等待審核中...</div>';
+                        if (event.type === 'OnSite') {
+                            actionButtons = `<button class="btn btn-danger" onclick="cancelRegistration('${event.id}')">取消報名</button>`;
+                        }
+                    } else if (userReg.status === 'approved') {
+                        statusInfo += '<div class="info-text">✅ 報名已核准</div>';
+                        if (userReg.approvedTime) {
+                            statusInfo += `<div class="card-content" style="margin: 5px 0; font-size: 12px;">核准時間: ${new Date(userReg.approvedTime).toLocaleString('zh-TW')}</div>`;
+                        }
+
+                        if (event.type === 'OnSite' && !userReg.checkedIn) {
+                            actionButtons = `<button class="btn btn-success" onclick="checkIn('${event.id}')">📍 簽到</button>`;
+                        } else if (event.type === 'OnSite' && userReg.checkedIn) {
+                            statusInfo += '<div class="info-text">✅ 已完成簽到</div>';
+                            if (userReg.checkedInTime) {
+                                statusInfo += `<div class="card-content" style="margin: 5px 0; font-size: 12px;">簽到時間: ${new Date(userReg.checkedInTime).toLocaleString('zh-TW')}</div>`;
+                            }
+                        }
+                    } else if (userReg.status === 'rejected') {
+                        statusInfo += '<div class="warning-text">❌ 報名未通過</div>';
+                    }
+                } else {
+                    actionButtons = `<button class="btn btn-primary" onclick="registerEvent('${event.id}')">報名參加</button>`;
+                }
+
+                actionButtons += ` <button class="btn btn-secondary" onclick="viewEventDetail('${event.id}')">查看詳情</button>`;
+
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div class="card-title">${event.title}</div>
+                        <span class="card-badge badge-${event.type.toLowerCase()}">${event.type}</span>
+                    </div>
+                    ${statusInfo}
+                    <div class="card-content">${event.description}</div>
+                    <div class="card-actions">${actionButtons}</div>
+                `;
+
+                container.appendChild(card);
+            });
+
+            // 渲染歷史活動
+            if (expiredEvents.length > 0) {
+                historySection.classList.remove('hidden');
+
+                expiredEvents.forEach(event => {
+                    const userReg = registrations.find(r =>
+                        r.eventId === event.id && r.userName === currentUser
+                    );
+
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.style.opacity = '0.85'; // 歷史活動稍微半透明
+
+                    let statusInfo = '<div class="warning-text">📅 活動已結束</div>';
+                    let actionButtons = '';
+
+                    if (userReg) {
+                        // 中獎與未中獎提示（Online 活動專用）
+                        if (event.type === 'Online' && event.lastDrawTime) {
+                            if (userReg.isWinner) {
+                                statusInfo += '<div class="winner-badge">🎉 您已中獎！</div>';
+                            } else if (userReg.status === 'approved') {
+                                statusInfo += '<div class="info-text" style="background: #fff3cd; border-left-color: #ffc107; color: #856404;">💔 未中獎</div>';
+                            }
+                        } else if (userReg.isWinner) {
+                            statusInfo += '<div class="winner-badge">🎉 您已中獎！</div>';
+                        }
+
+                        if (userReg.status === 'approved') {
+                            statusInfo += '<div class="info-text">✅ 已參與此活動</div>';
+                            if (userReg.approvedTime) {
+                                statusInfo += `<div class="card-content" style="margin: 5px 0; font-size: 12px;">核准時間: ${new Date(userReg.approvedTime).toLocaleString('zh-TW')}</div>`;
+                            }
+                            if (event.type === 'OnSite' && userReg.checkedIn && userReg.checkedInTime) {
+                                statusInfo += `<div class="card-content" style="margin: 5px 0; font-size: 12px;">簽到時間: ${new Date(userReg.checkedInTime).toLocaleString('zh-TW')}</div>`;
+                            }
+                        } else if (userReg.status === 'rejected') {
+                            statusInfo += '<div class="warning-text">❌ 報名未通過</div>';
+                        } else if (userReg.status === 'pending') {
+                            statusInfo += '<div class="warning-text">⏳ 審核未完成</div>';
+                        }
+                    }
+
+                    actionButtons = `<button class="btn btn-secondary" onclick="viewEventDetail('${event.id}')">查看詳情</button>`;
+
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <div class="card-title">${event.title}</div>
+                            <span class="card-badge badge-${event.type.toLowerCase()}">${event.type}</span>
+                        </div>
+                        ${statusInfo}
+                        <div class="card-content">${event.description}</div>
+                        <div class="card-actions">${actionButtons}</div>
+                    `;
+
+                    historyContainer.appendChild(card);
+                });
+            } else {
+                historySection.classList.add('hidden');
+            }
+        }
+
+        function claimTaskReward(taskId, points) {
+            const claims = getTaskClaims(currentUser);
+            if (claims[taskId]) {
+                alert('您已經領取過此任務的獎勵！');
+                return;
+            }
+
+            // 記錄領取
+            saveTaskClaim(currentUser, taskId);
+
+            // 增加點數
+            const currentPoints = getUserPoints(currentUser);
+            saveUserPoints(currentUser, currentPoints + points);
+
+            alert(`恭喜！成功領取 ${points} 點獎勵！`);
+            renderUserScreen();
+        }
+
+        function registerEvent(eventId) {
+            const events = getEvents();
+            const event = events.find(e => e.id === eventId);
+            if (!event) return;
+
+            const registrations = getRegistrations();
+
+            // 檢查是否已報名
+            const existing = registrations.find(r =>
+                r.eventId === eventId && r.userName === currentUser
+            );
+
+            if (existing) {
+                alert('您已經報名過此活動！');
+                return;
+            }
+
+            const now = new Date();
+
+            // Online 活動檢查報名時間
+            if (event.type === 'Online') {
+                if (event.registrationStartTime && now < new Date(event.registrationStartTime)) {
+                    alert(`報名尚未開始！\n開始時間：${new Date(event.registrationStartTime).toLocaleString('zh-TW')}`);
+                    return;
+                }
+                if (event.registrationEndTime && now > new Date(event.registrationEndTime)) {
+                    alert(`報名已截止！\n截止時間：${new Date(event.registrationEndTime).toLocaleString('zh-TW')}`);
+                    return;
+                }
+            }
+
+            // OnSite 活動檢查報名時間
+            if (event.type === 'OnSite') {
+                if (event.registrationStartTime && now < new Date(event.registrationStartTime)) {
+                    alert(`報名尚未開始！\n開始時間：${new Date(event.registrationStartTime).toLocaleString('zh-TW')}`);
+                    return;
+                }
+                if (event.registrationEndTime && now > new Date(event.registrationEndTime)) {
+                    alert(`報名已截止！\n截止時間：${new Date(event.registrationEndTime).toLocaleString('zh-TW')}`);
+                    return;
+                }
+            }
+
+            const registration = {
+                eventId: eventId,
+                userName: currentUser,
+                timestamp: new Date().toISOString(),
+                status: event.type === 'Online' ? 'approved' : 'pending',
+                checkedIn: false,
+                isWinner: false,
+                approvedTime: event.type === 'Online' ? new Date().toISOString() : null
+            };
+
+            registrations.push(registration);
+            saveRegistrations(registrations);
+
+            if (event.type === 'Online') {
+                alert('報名成功！');
+            } else {
+                alert('報名成功！等待管理者審核');
+            }
+
+            renderUserScreen();
+        }
+
+        function cancelRegistration(eventId) {
+            const registrations = getRegistrations();
+            const regIndex = registrations.findIndex(r =>
+                r.eventId === eventId && r.userName === currentUser
+            );
+
+            if (regIndex === -1) return;
+
+            const reg = registrations[regIndex];
+
+            if (reg.status === 'approved') {
+                alert('報名已核准，無法取消！');
+                return;
+            }
+
+            if (confirm('確定要取消報名嗎？')) {
+                registrations.splice(regIndex, 1);
+                saveRegistrations(registrations);
+                alert('已取消報名');
+                renderUserScreen();
+            }
+        }
+
+        function checkIn(eventId) {
+            const events = getEvents();
+            const event = events.find(e => e.id === eventId);
+            if (!event) return;
+
+            const registrations = getRegistrations();
+            const reg = registrations.find(r =>
+                r.eventId === eventId && r.userName === currentUser
+            );
+
+            if (!reg) return;
+
+            if (reg.status !== 'approved') {
+                alert('報名尚未核准，無法簽到！');
+                return;
+            }
+
+            // 檢查簽到時間
+            const now = new Date();
+            if (event.checkinStartTime && now < new Date(event.checkinStartTime)) {
+                alert(`簽到尚未開始！\n開始時間：${new Date(event.checkinStartTime).toLocaleString('zh-TW')}`);
+                return;
+            }
+            if (event.checkinEndTime && now > new Date(event.checkinEndTime)) {
+                alert(`簽到已截止！\n截止時間：${new Date(event.checkinEndTime).toLocaleString('zh-TW')}`);
+                return;
+            }
+
+            reg.checkedIn = true;
+            reg.checkedInTime = new Date().toISOString();
+            saveRegistrations(registrations);
+            alert('簽到成功！');
+            renderUserScreen();
+        }
+
+        function viewEventDetail(eventId) {
+            const events = getEvents();
+            const event = events.find(e => e.id === eventId);
+            if (!event) return;
+
+            const registrations = getRegistrations();
+            const userReg = registrations.find(r =>
+                r.eventId === eventId && r.userName === currentUser
+            );
+
+            document.getElementById('detailTitle').textContent = event.title;
+
+            let html = `<div class="card-content">`;
+            html += `<p><strong>類型：</strong><span class="card-badge badge-${event.type.toLowerCase()}">${event.type}</span></p>`;
+            html += `<p><strong>說明：</strong>${event.description}</p>`;
+
+            if (event.type === 'Online') {
+                if (userReg && userReg.status === 'approved' && event.link) {
+                    html += `<p><strong>📍 連結：</strong><a href="${event.link}" target="_blank">${event.link}</a></p>`;
+                } else if (!userReg || userReg.status !== 'approved') {
+                    html += `<p class="info-text">連結將在報名核准後顯示</p>`;
+                }
+                if (event.drawSlots > 0) {
+                    html += `<p><strong>🎁 抽獎名額：</strong>${event.drawSlots} 名</p>`;
+                    if (event.drawTime) {
+                        html += `<p><strong>⏰ 抽獎時間：</strong>${new Date(event.drawTime).toLocaleString('zh-TW')}</p>`;
+                    }
+                }
+            } else if (event.type === 'OnSite') {
+                html += `<p><strong>📍 地點：</strong>${event.location || '未設定'}</p>`;
+                if (event.registrationStartTime && event.registrationEndTime) {
+                    html += `<p><strong>📅 報名時間：</strong>${new Date(event.registrationStartTime).toLocaleString('zh-TW')} ~ ${new Date(event.registrationEndTime).toLocaleString('zh-TW')}</p>`;
+                }
+                if (event.checkinStartTime && event.checkinEndTime) {
+                    html += `<p><strong>⏰ 簽到時間：</strong>${new Date(event.checkinStartTime).toLocaleString('zh-TW')} ~ ${new Date(event.checkinEndTime).toLocaleString('zh-TW')}</p>`;
+                }
+            }
+
+            // 顯示使用者的報名狀態
+            if (userReg) {
+                html += `<hr style="margin: 15px 0; border: none; border-top: 1px solid #e2e8f0;">`;
+                html += `<p><strong>📋 您的報名狀態：</strong></p>`;
+                html += `<p>報名時間: ${new Date(userReg.timestamp).toLocaleString('zh-TW')}</p>`;
+                if (userReg.approvedTime) {
+                    html += `<p>核准時間: ${new Date(userReg.approvedTime).toLocaleString('zh-TW')}</p>`;
+                }
+                if (userReg.checkedInTime) {
+                    html += `<p>簽到時間: ${new Date(userReg.checkedInTime).toLocaleString('zh-TW')}</p>`;
+                }
+            }
+
+            // 顯示中獎名單（遮罩處理）
+            const winners = registrations.filter(r => r.eventId === eventId && r.isWinner);
+            if (winners.length > 0) {
+                html += `<div class="info-text">`;
+                html += `<strong>🎉 中獎名單：</strong><br>`;
+                winners.forEach(w => {
+                    const masked = maskUserId(w.userName);
+                    html += `${masked}<br>`;
+                });
+                html += `</div>`;
+            }
+
+            html += `</div>`;
+
+            document.getElementById('eventDetailContent').innerHTML = html;
+            document.getElementById('eventDetailModal').classList.add('active');
+        }
+
+        function closeEventDetailModal() {
+            document.getElementById('eventDetailModal').classList.remove('active');
+        }
+
+        function maskUserId(userId) {
+            if (userId.length <= 2) return userId;
+            const first = userId[0];
+            const last = userId[userId.length - 1];
+            const stars = '*'.repeat(Math.min(4, userId.length - 2));
+            return first + stars + last;
+        }
+
+        // ==================== 初始化 ====================
+        initStorage();
+    </script>
+</body>
+</html>
