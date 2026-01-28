@@ -1,6 +1,6 @@
 # 活動報名與任務累積系統 - 技術規格文件
 
-> **版本**: 2.3.0
+> **版本**: 3.0.0
 > **最後更新**: 2026-01-27
 > **檔案**: event.html
 
@@ -45,9 +45,10 @@
 
 ### 技術棧
 - **HTML5**: 結構與語意化標籤
-- **CSS3**: 漸層、動畫、Flexbox、Grid 排版
+- **CSS3**: 漸層、動畫、Flexbox、Grid 排版、Glassmorphism (玻璃擬態)
 - **Vanilla JavaScript**: 無框架依賴，純原生 JS
 - **LocalStorage API**: 瀏覽器端資料儲存
+- **QRCode.js**: QR Code 生成庫 (v1.5.3) - 用於簽到碼掃描
 
 ### 檔案結構
 ```
@@ -126,8 +127,8 @@ localStorage
 | `title` | String | 活動標題 | ✅ |
 | `description` | String | 活動說明 | ✅ |
 | `link` | String | 連結 (URL) | ⭕ |
-| `registrationStartTime` | String (datetime-local) | 報名開始時間 | ⭕ |
-| `registrationEndTime` | String (datetime-local) | 報名結束時間 | ⭕ |
+| `registrationStartTime` | String (datetime-local) | 報名開始時間 | ✅ |
+| `registrationEndTime` | String (datetime-local) | 報名結束時間 | ✅ |
 | `drawSlots` | Number | 抽獎名額 | ⭕ |
 | `lastDrawTime` | String (ISO) | 最後執行抽獎的時間戳記 | ❌ |
 
@@ -161,8 +162,8 @@ localStorage
 | `title` | String | 活動標題 | ✅ |
 | `description` | String | 活動說明 | ✅ |
 | `location` | String | 活動地點 | ⭕ |
-| `registrationStartTime` | String (datetime-local) | 報名開始時間 | ⭕ |
-| `registrationEndTime` | String (datetime-local) | 報名結束時間 | ⭕ |
+| `registrationStartTime` | String (datetime-local) | 報名開始時間 | ✅ |
+| `registrationEndTime` | String (datetime-local) | 報名結束時間 | ✅ |
 | `checkinStartTime` | String (datetime-local) | 簽到開始時間 | ⭕ |
 | `checkinEndTime` | String (datetime-local) | 簽到結束時間 | ⭕ |
 
@@ -247,6 +248,7 @@ interface Event {
   registrationEndTime?: string;     // 報名結束時間 (datetime-local)
   drawSlots?: number;               // 抽獎名額
   lastDrawTime?: string;            // 最後執行抽獎時間 (ISO 8601)
+  maxParticipants?: number;         // 報名人數上限，0 = 無限制 (v3.0.0)
 
   // OnSite 專屬
   location?: string;                // 活動地點
@@ -254,6 +256,12 @@ interface Event {
   registrationEndTime?: string;     // 報名結束時間 (datetime-local)
   checkinStartTime?: string;        // 簽到開始時間 (datetime-local)
   checkinEndTime?: string;          // 簽到結束時間 (datetime-local)
+  maxParticipants?: number;         // 報名人數上限，0 = 無限制 (v3.0.0)
+  checkinCodeEnabled?: boolean;     // 是否啟用動態簽到碼 (v3.0.0)
+  currentCheckinCode?: {            // 當前簽到碼 (v3.0.0)
+    code: string;                   // 6 位字母數字組合
+    generatedAt: string;            // 生成時間 (ISO 8601)
+  }
 
   // Task 專屬
   startTime?: string;      // 任務開始時間 (datetime-local)
@@ -270,11 +278,13 @@ interface Registration {
   eventId: string;         // 對應的活動 ID
   userName: string;        // 使用者 ID
   timestamp: string;       // 報名時間 (ISO 8601)
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "waitlist";  // v3.0.0 新增 waitlist
   checkedIn: boolean;      // 是否已簽到 (OnSite 專用)
   isWinner: boolean;       // 是否中獎 (Online 抽獎用)
   approvedTime?: string;   // 核准時間 (ISO 8601)
   checkedInTime?: string;  // 簽到時間 (ISO 8601)
+  waitlistPosition?: number;  // 候補順位 (v3.0.0)
+  waitlistTime?: string;      // 加入候補時間 (ISO 8601) (v3.0.0)
 }
 ```
 
@@ -1067,10 +1077,20 @@ if (isEventExpired(event)) {
 - 歷史活動列表（半透明顯示）
 - 報名狀態顯示
 - 中獎標記
+- 活動時間資訊（報名開始 ~ 報名結束）
 
 **活動分類**:
 - 進行中：未過期的活動，顯示完整操作按鈕
 - 歷史：已過期的活動，只顯示查看詳情按鈕
+
+**活動時間顯示**:
+```javascript
+// 在活動卡片中顯示報名期間
+if (event.registrationStartTime && event.registrationEndTime) {
+  顯示: 📅 報名期間: MM/DD HH:mm ~ MM/DD HH:mm
+  樣式: 灰色文字、小字體（13px）
+}
+```
 
 **中獎狀態顯示** (歷史活動 - Online 活動專用):
 ```javascript
@@ -1341,11 +1361,32 @@ document.getElementById('eventForm').addEventListener('submit', function(e) {
 
 | 版本 | 日期 | 變更內容 |
 |------|------|---------|
+| 2.4.0 | 2026-01-27 | 必填欄位設定、使用者畫面顯示活動時間 |
 | 2.3.0 | 2026-01-27 | Online 活動新增報名時間控制 |
 | 2.2.0 | 2026-01-27 | 中獎狀態顯示優化、OMO 概念整合 |
 | 2.1.0 | 2026-01-27 | 新增歷史活動區域，任務過期自動隱藏 |
 | 2.0.0 | 2026-01-27 | 重大更新：時間區間管理、點數系統、取消報名功能 |
 | 1.0.0 | 2026-01-27 | 初始版本發布 |
+
+#### 2.4.0 詳細變更
+
+**必填欄位設定**
+- ✅ 活動標題：設為必填
+- ✅ 活動說明：設為必填（textarea 加入 required 屬性）
+- ✅ Online 活動報名開始時間：設為必填
+- ✅ Online 活動報名結束時間：設為必填
+- ✅ OnSite 活動報名開始時間：設為必填
+- ✅ OnSite 活動報名結束時間：設為必填
+
+**使用者介面優化**
+- ✅ 活動卡片顯示報名期間（報名開始時間 ~ 報名結束時間）
+- ✅ 進行中活動和歷史活動都顯示時間資訊
+- ✅ 時間格式優化：顯示月/日 時:分
+
+**文件更新**
+- ✅ 同步更新 README.md、CLAUDE.md、event-system-spec.md
+- ✅ 更新必填欄位標記
+- ✅ 更新活動類型對比表
 
 #### 2.3.0 詳細變更
 
@@ -1428,6 +1469,10 @@ document.getElementById('eventForm').addEventListener('submit', function(e) {
 ---
 
 ### 待辦事項 (Roadmap)
+
+#### 已完成 (v2.4.0)
+- [x] 設定必填欄位（標題、說明、報名時間）
+- [x] 使用者畫面顯示活動報名期間
 
 #### 已完成 (v2.3.0)
 - [x] Online 活動新增報名時間控制（與 OnSite 統一）
@@ -1822,6 +1867,59 @@ test('user registration flow', () => {
 - `.points-display` - 點數顯示 (金色漸層)
 - `.tooltip` / `.tooltiptext` - 提示框容器與內容
 - `.achievement-stamp` - 達成標記 (脈衝動畫)
+- `.status-waitlist` - 候補狀態標籤 (v3.0.0)
+
+---
+
+## 版本歷史
+
+### v3.0.0 (2026-01-27)
+**重大功能更新**：
+- ✨ UI 全面優化
+  - 漸層背景和覆蓋層效果
+  - 玻璃擬態 (Glassmorphism) 登入畫面
+  - 增強的按鈕、卡片、模態框樣式
+  - 滑入、淡入、閃爍等動畫效果
+  - 優化的表單輸入框和狀態標籤
+- 🎟️ 報名人數上限與候補機制
+  - Online/OnSite 活動可設定 `maxParticipants`
+  - Online 達上限後拒絕報名
+  - OnSite 達上限後自動進入候補名單
+  - 候補狀態 (`waitlist`) 與順位管理
+  - 自動遞補邏輯 (`promoteFromWaitlist`)
+  - 手動遞補功能 (`promoteWaitlistUser`)
+- 🔐 OnSite 動態簽到碼系統
+  - 6 位字母數字組合簽到碼
+  - 每 30 秒自動刷新
+  - QR Code 掃描支援 (qrcode.js v1.5.3)
+  - 管理者界面實時顯示倒數計時
+  - 簽到碼有效期驗證
+
+### v2.4.0 (2026-01-27)
+- 活動標題、描述、報名時間設為必填欄位
+- 使用者界面顯示報名開始/結束時間
+- 動態表單驗證（根據活動類型添加/移除 required 屬性）
+
+### v2.3.0 (2026-01-27)
+- Online 活動新增報名開始/結束時間控制
+- 抽獎改為報名結束後才能執行
+
+### v2.2.0 (2026-01-27)
+- 歷史活動顯示未中獎提示
+- OMO 概念說明
+- 活動分類顯示（進行中/歷史）
+
+### v2.1.0 (2026-01-27)
+- 新增歷史活動區域
+- 任務過期後自動隱藏 Banner
+
+### v2.0.0 (2026-01-27)
+- 時間區間管理功能
+- 點數系統與獎勵領取
+- OnSite 取消報名功能
+
+### v1.0.0 (2026-01-27)
+- 初始版本發布
 
 ---
 
