@@ -81,6 +81,10 @@ function renderUserScreen() {
     const activeEvents = userEvents.filter(e => !isEventExpired(e));
     const expiredEvents = userEvents.filter(e => isEventExpired(e));
 
+    // 按照創建時間降序排列（ID 越大表示創建時間越晚）
+    activeEvents.sort((a, b) => b.id.localeCompare(a.id));
+    expiredEvents.sort((a, b) => b.id.localeCompare(a.id));
+
     // 渲染進行中的活動
     activeEvents.forEach(event => {
         const userReg = registrations.find(r =>
@@ -109,12 +113,29 @@ function renderUserScreen() {
                     statusInfo += `<div class="card-content" style="margin: 5px 0; font-size: 12px;">核准時間: ${new Date(userReg.approvedTime).toLocaleString('zh-TW')}</div>`;
                 }
 
-                if (event.type === 'OnSite' && !userReg.checkedIn) {
-                    actionButtons = `<button class="btn btn-success" onclick="checkIn('${event.id}')">📍 簽到</button>`;
-                } else if (event.type === 'OnSite' && userReg.checkedIn) {
-                    statusInfo += '<div class="info-text">✅ 已完成簽到</div>';
-                    if (userReg.checkedInTime) {
-                        statusInfo += `<div class="card-content" style="margin: 5px 0; font-size: 12px;">簽到時間: ${new Date(userReg.checkedInTime).toLocaleString('zh-TW')}</div>`;
+                // 顯示 Hybrid 參與模式
+                if (event.type === 'OnSite' && event.allowOnlineView && userReg.participationMode) {
+                    const modeIcon = userReg.participationMode === 'online' ? '🌐' : '📍';
+                    const modeText = userReg.participationMode === 'online' ? '線上參與' : '實體參與';
+                    statusInfo += `<div class="card-content" style="margin: 5px 0; font-size: 12px; color: #667eea;">${modeIcon} ${modeText}</div>`;
+                }
+
+                // 簽到按鈕邏輯：線上參與者免簽到
+                if (event.type === 'OnSite') {
+                    const isOnlineParticipant = event.allowOnlineView && userReg.participationMode === 'online';
+
+                    if (isOnlineParticipant) {
+                        statusInfo += '<div class="info-text" style="background: #e6fffa; border-left-color: #38b2ac;">🌐 線上參與，無需簽到</div>';
+                        if (event.onlineLink) {
+                            statusInfo += `<div class="card-content" style="margin: 5px 0;"><a href="${event.onlineLink}" target="_blank" class="btn btn-secondary" style="display: inline-block; padding: 5px 10px; font-size: 12px;">🔗 前往線上活動</a></div>`;
+                        }
+                    } else if (!userReg.checkedIn) {
+                        actionButtons = `<button class="btn btn-success" onclick="checkIn('${event.id}')">📍 簽到</button>`;
+                    } else {
+                        statusInfo += '<div class="info-text">✅ 已完成簽到</div>';
+                        if (userReg.checkedInTime) {
+                            statusInfo += `<div class="card-content" style="margin: 5px 0; font-size: 12px;">簽到時間: ${new Date(userReg.checkedInTime).toLocaleString('zh-TW')}</div>`;
+                        }
                     }
                 }
             } else if (userReg.status === 'waitlist') {
@@ -167,8 +188,7 @@ function renderUserScreen() {
             );
 
             const card = document.createElement('div');
-            card.className = 'card';
-            card.style.opacity = '0.85'; // 歷史活動稍微半透明
+            card.className = 'card card-expired'; // 歷史活動使用已結束樣式
 
             let statusInfo = '<div class="warning-text">📅 活動已結束</div>';
             let actionButtons = '';
@@ -212,7 +232,10 @@ function renderUserScreen() {
 
             card.innerHTML = `
                 <div class="card-header">
-                    <div class="card-title">${event.title}</div>
+                    <div class="card-title">
+                        ${event.title}
+                        <span class="expired-badge">已結束</span>
+                    </div>
                     <span class="card-badge badge-${event.type.toLowerCase()}">${event.type}</span>
                 </div>
                 ${statusInfo}
@@ -272,6 +295,27 @@ function registerEvent(eventId) {
         }
     }
 
+    // Hybrid 混合模式：詢問參與方式
+    let participationMode = null;
+    if (event.type === 'OnSite' && event.allowOnlineView) {
+        const choice = prompt(
+            '此活動支援 Hybrid 混合模式（線上＋實體）\n\n' +
+            '請選擇您的參與方式：\n' +
+            '1 = 實體參與（需現場簽到）\n' +
+            '2 = 線上參與（免簽到，提供線上連結）\n\n' +
+            '請輸入 1 或 2：'
+        );
+
+        if (choice === '1') {
+            participationMode = 'onsite';
+        } else if (choice === '2') {
+            participationMode = 'online';
+        } else {
+            alert('請輸入 1 或 2 選擇參與方式！');
+            return;
+        }
+    }
+
     // 檢查報名人數上限
     let isWaitlist = false;
     if (event.maxParticipants > 0) {
@@ -299,6 +343,11 @@ function registerEvent(eventId) {
         approvedTime: (event.type === 'Online' && !isWaitlist) ? new Date().toISOString() : null
     };
 
+    // 記錄 Hybrid 參與模式
+    if (participationMode) {
+        registration.participationMode = participationMode;
+    }
+
     // 如果是候補，記錄候補時間和順位
     if (isWaitlist) {
         registration.waitlistTime = new Date().toISOString();
@@ -316,7 +365,11 @@ function registerEvent(eventId) {
     } else if (event.type === 'Online') {
         alert('報名成功！');
     } else {
-        alert('報名成功！等待管理者審核');
+        if (participationMode === 'online') {
+            alert('報名成功！等待管理者審核\n\n您選擇了線上參與，核准後無需簽到。');
+        } else {
+            alert('報名成功！等待管理者審核');
+        }
     }
 
     renderUserScreen();
@@ -370,6 +423,12 @@ function checkIn(eventId, inputCode = null) {
 
     if (reg.status !== 'approved') {
         alert('報名尚未核准，無法簽到！');
+        return;
+    }
+
+    // Hybrid 模式：線上參與者無需簽到
+    if (event.allowOnlineView && reg.participationMode === 'online') {
+        alert('您選擇了線上參與，無需簽到！');
         return;
     }
 
@@ -436,6 +495,15 @@ function viewEventDetail(eventId) {
         }
     } else if (event.type === 'OnSite') {
         html += `<p><strong>📍 地點：</strong>${event.location || '未設定'}</p>`;
+
+        // Hybrid 模式資訊
+        if (event.allowOnlineView) {
+            html += `<div class="info-text" style="background: #e6fffa; border-left-color: #38b2ac;">🌐 此活動支援 Hybrid 混合模式（線上＋實體）</div>`;
+            if (userReg && userReg.status === 'approved' && userReg.participationMode === 'online' && event.onlineLink) {
+                html += `<p><strong>🔗 線上連結：</strong><a href="${event.onlineLink}" target="_blank">${event.onlineLink}</a></p>`;
+            }
+        }
+
         if (event.registrationStartTime && event.registrationEndTime) {
             html += `<p><strong>📅 報名時間：</strong>${new Date(event.registrationStartTime).toLocaleString('zh-TW')} ~ ${new Date(event.registrationEndTime).toLocaleString('zh-TW')}</p>`;
         }

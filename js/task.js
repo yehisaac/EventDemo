@@ -23,8 +23,22 @@ function calculateUserTaskProgress(userId, taskEvent) {
 
         if (event.type === 'Online' && reg.status === 'approved') {
             activityTime = new Date(reg.approvedTime || reg.timestamp).getTime();
-        } else if (event.type === 'OnSite' && reg.status === 'approved' && reg.checkedIn) {
-            activityTime = new Date(reg.checkedInTime || reg.timestamp).getTime();
+        } else if (event.type === 'OnSite' && reg.status === 'approved') {
+            // Hybrid 模式：線上參與者的任務計算
+            const isOnlineParticipant = event.allowOnlineView && reg.participationMode === 'online';
+
+            if (isOnlineParticipant) {
+                // 如果是線上參與者，檢查 countOnlineForTask 設定
+                if (event.countOnlineForTask) {
+                    activityTime = new Date(reg.approvedTime || reg.timestamp).getTime();
+                }
+                // 如果 countOnlineForTask 為 false，則不計入（activityTime 保持 null）
+            } else {
+                // 實體參與者必須簽到才計入
+                if (reg.checkedIn) {
+                    activityTime = new Date(reg.checkedInTime || reg.timestamp).getTime();
+                }
+            }
         }
 
         if (activityTime && activityTime >= taskStart && activityTime <= taskEnd) {

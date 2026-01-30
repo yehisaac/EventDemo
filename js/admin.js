@@ -1,7 +1,36 @@
 /**
  * 管理者功能模組
- * Event Management System v3.0.0
+ * Event Management System v3.2.0
  */
+
+// 存儲所有活動的計時器 ID
+const checkinTimers = {};
+
+// ==================== QRCode 載入檢查 ====================
+function waitForQRCode(callback, maxRetries = 50) {
+    if (typeof QRCode !== 'undefined') {
+        callback();
+    } else if (maxRetries > 0) {
+        setTimeout(() => waitForQRCode(callback, maxRetries - 1), 100);
+    } else {
+        console.error('QRCode 庫載入失敗，請檢查網路連線或使用本地庫');
+    }
+}
+
+// ==================== 切換頁籤 ====================
+function switchTab(tabName) {
+    // 移除所有 active 狀態
+    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+    // 添加 active 到選中的頁籤
+    const buttons = document.querySelectorAll('.tab-button');
+    if (tabName === 'online') buttons[0].classList.add('active');
+    else if (tabName === 'onsite') buttons[1].classList.add('active');
+    else if (tabName === 'task') buttons[2].classList.add('active');
+
+    document.getElementById(`tab-${tabName}`).classList.add('active');
+}
 
 // ==================== 渲染管理者介面 ====================
 function renderAdminScreen() {
@@ -13,8 +42,40 @@ function renderAdminScreen() {
     document.getElementById('totalRegistrations').textContent = registrations.length;
     document.getElementById('pendingApprovals').textContent = registrations.filter(r => r.status === 'pending').length;
 
-    const container = document.getElementById('adminEventsList');
+    // 按照創建時間降序排列（ID 越大表示創建時間越晚）
+    const sortedEvents = events.sort((a, b) => b.id.localeCompare(a.id));
+
+    // 分類活動
+    const onlineEvents = sortedEvents.filter(e => e.type === 'Online');
+    const onsiteEvents = sortedEvents.filter(e => e.type === 'OnSite');
+    const taskEvents = sortedEvents.filter(e => e.type === 'Task');
+
+    // 更新頁籤計數器
+    document.getElementById('onlineCount').textContent = onlineEvents.length;
+    document.getElementById('onsiteCount').textContent = onsiteEvents.length;
+    document.getElementById('taskCount').textContent = taskEvents.length;
+
+    // 渲染各類型活動
+    renderEventsByType('onlineEventsList', onlineEvents, registrations, '📡 目前沒有線上活動');
+    renderEventsByType('onsiteEventsList', onsiteEvents, registrations, '📍 目前沒有實體活動');
+    renderEventsByType('taskEventsList', taskEvents, registrations, '🎯 目前沒有任務活動');
+}
+
+// ==================== 渲染特定類型的活動 ====================
+function renderEventsByType(containerId, events, registrations, emptyMessage) {
+    const container = document.getElementById(containerId);
     container.innerHTML = '';
+
+    if (events.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
+                <div style="font-size: 18px; font-weight: 600;">${emptyMessage}</div>
+                <div style="font-size: 14px; margin-top: 8px; opacity: 0.7;">使用「新增活動」按鈕建立新活動</div>
+            </div>
+        `;
+        return;
+    }
 
     events.forEach(event => {
         const regCount = registrations.filter(r => r.eventId === event.id).length;
@@ -25,8 +86,11 @@ function renderAdminScreen() {
             r.eventId === event.id && r.status === 'waitlist'
         ).length;
 
+        // 檢查活動是否已結束
+        const isExpired = isEventExpired(event);
+
         const card = document.createElement('div');
-        card.className = 'card';
+        card.className = isExpired ? 'card card-expired' : 'card';
 
         let statusInfo = '';
         if (event.type === 'Task') {
@@ -43,6 +107,11 @@ function renderAdminScreen() {
 
             if (event.type === 'Online' && event.drawSlots > 0) {
                 statusInfo += `<div class="card-content"><strong>抽獎名額：</strong>${event.drawSlots} 名</div>`;
+            }
+
+            // 顯示 Hybrid 模式標示
+            if (event.type === 'OnSite' && event.allowOnlineView) {
+                statusInfo += `<div class="card-content" style="color: #667eea;"><strong>🌐 Hybrid 混合模式</strong>（線上＋實體）</div>`;
             }
 
             // 顯示簽到碼（僅限 OnSite 活動且啟用簽到碼）
@@ -73,17 +142,22 @@ function renderAdminScreen() {
                     const qrContainer = document.getElementById(`qrcode_${event.id}`);
                     if (qrContainer && hasValidCode) {
                         qrContainer.innerHTML = ''; // 清空舊的
-                        new QRCode(qrContainer, {
-                            text: event.currentCheckinCode.code,
-                            width: 150,
-                            height: 150,
-                            colorDark: "#1a202c",
-                            colorLight: "#ffffff"
-                        });
-                    }
 
-                    // 啟動倒數計時器
-                    if (hasValidCode) {
+                        // 等待 QRCode 庫載入完成
+                        waitForQRCode(() => {
+                            new QRCode(qrContainer, {
+                                text: event.currentCheckinCode.code,
+                                width: 150,
+                                height: 150,
+                                colorDark: "#1a202c",
+                                colorLight: "#ffffff"
+                            });
+
+                            // 啟動倒數計時器
+                            startCheckinTimer(event.id);
+                        });
+                    } else if (hasValidCode) {
+                        // 沒有 QR Code 但有簽到碼時，仍需啟動計時器
                         startCheckinTimer(event.id);
                     }
                 }, 100);
@@ -100,20 +174,28 @@ function renderAdminScreen() {
         }
 
         if (event.type === 'Online' && event.drawSlots > 0) {
-            // 只有在報名截止後才顯示抽獎按鈕
-            const now = new Date();
-            const registrationEnded = !event.registrationEndTime || now >= new Date(event.registrationEndTime);
-
-            if (registrationEnded) {
-                actionButtons += `<button class="btn btn-success" onclick="executeDraw('${event.id}')">執行抽獎</button>`;
+            // 檢查是否已執行過抽獎
+            if (event.lastDrawTime) {
+                actionButtons += `<button class="btn btn-secondary" disabled title="已於 ${new Date(event.lastDrawTime).toLocaleString('zh-TW')} 執行">✅ 已抽獎</button>`;
             } else {
-                actionButtons += `<button class="btn btn-secondary" disabled title="報名截止後可執行抽獎">⏰ 等待報名截止</button>`;
+                // 只有在報名截止後才顯示抽獎按鈕
+                const now = new Date();
+                const registrationEnded = !event.registrationEndTime || now >= new Date(event.registrationEndTime);
+
+                if (registrationEnded) {
+                    actionButtons += `<button class="btn btn-success" onclick="executeDraw('${event.id}')">執行抽獎</button>`;
+                } else {
+                    actionButtons += `<button class="btn btn-secondary" disabled title="報名截止後可執行抽獎">⏰ 等待報名截止</button>`;
+                }
             }
         }
 
         card.innerHTML = `
             <div class="card-header">
-                <div class="card-title">${event.title}</div>
+                <div class="card-title">
+                    ${event.title}
+                    ${isExpired ? '<span class="expired-badge">已結束</span>' : ''}
+                </div>
                 <span class="card-badge badge-${event.type.toLowerCase()}">${event.type}</span>
             </div>
             ${statusInfo}
@@ -127,29 +209,55 @@ function renderAdminScreen() {
 
 // ==================== 簽到碼計時器 ====================
 function startCheckinTimer(eventId) {
-    const events = getEvents();
-    const event = events.find(e => e.id === eventId);
-    if (!event || !event.currentCheckinCode) return;
+    // 清除該活動的舊計時器（如果存在）
+    if (checkinTimers[eventId]) {
+        clearTimeout(checkinTimers[eventId]);
+        delete checkinTimers[eventId];
+    }
 
     const timerElement = document.getElementById(`timer_${eventId}`);
-    if (!timerElement) return;
+    if (!timerElement) {
+        console.error(`計時器元素找不到: timer_${eventId}`);
+        return;
+    }
 
     const updateTimer = () => {
+        // 每次更新都重新讀取最新的事件資料
+        const events = getEvents();
+        const event = events.find(e => e.id === eventId);
+
+        if (!event || !event.currentCheckinCode) {
+            timerElement.textContent = '點擊更新按鈕生成簽到碼';
+            timerElement.style.color = '#718096';
+            delete checkinTimers[eventId];
+            console.log(`計時器停止: ${eventId} - 沒有簽到碼`);
+            return;
+        }
+
         const generatedAt = new Date(event.currentCheckinCode.generatedAt);
         const now = new Date();
         const diffSeconds = Math.floor((now - generatedAt) / 1000);
         const remaining = 30 - diffSeconds;
+        console.log(`計時器更新: ${eventId} - 剩餘 ${remaining} 秒`);
 
         if (remaining > 0) {
             timerElement.textContent = `有效期限: ${remaining} 秒`;
             timerElement.style.color = remaining <= 10 ? '#e53e3e' : '#718096';
+            // 儲存計時器 ID
+            checkinTimers[eventId] = setTimeout(updateTimer, 1000);
         } else {
-            timerElement.textContent = '簽到碼已過期，請更新';
-            timerElement.style.color = '#e53e3e';
-            return; // 停止計時器
+            // 簽到碼過期，自動更新
+            const newCode = updateCheckinCode(eventId);
+            if (newCode) {
+                // 更新成功，重新渲染畫面並啟動新計時器
+                renderAdminScreen();
+            } else {
+                timerElement.textContent = '簽到碼已過期，請更新';
+                timerElement.style.color = '#e53e3e';
+                delete checkinTimers[eventId];
+            }
+            return;
         }
-
-        setTimeout(updateTimer, 1000);
     };
 
     updateTimer();
@@ -198,6 +306,16 @@ function editEvent(eventId) {
         document.getElementById('checkinStartTime').value = event.checkinStartTime || '';
         document.getElementById('checkinEndTime').value = event.checkinEndTime || '';
         document.getElementById('checkinCodeEnabled').checked = event.checkinCodeEnabled || false;
+
+        // Hybrid 混合模式欄位
+        document.getElementById('allowOnlineView').checked = event.allowOnlineView || false;
+        document.getElementById('onlineLink').value = event.onlineLink || '';
+        document.getElementById('countOnlineForTask').checked = event.countOnlineForTask || false;
+
+        // 觸發欄位顯示/隱藏
+        if (event.allowOnlineView) {
+            toggleOnlineLink();
+        }
     } else if (event.type === 'Task') {
         document.getElementById('taskGoal').value = event.taskGoal || '';
         document.getElementById('taskPoints').value = event.taskPoints || '';
@@ -283,6 +401,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 event.checkinStartTime = document.getElementById('checkinStartTime').value;
                 event.checkinEndTime = document.getElementById('checkinEndTime').value;
                 event.checkinCodeEnabled = document.getElementById('checkinCodeEnabled').checked;
+
+                // Hybrid 混合模式
+                event.allowOnlineView = document.getElementById('allowOnlineView').checked;
+                event.onlineLink = document.getElementById('onlineLink').value;
+                event.countOnlineForTask = document.getElementById('countOnlineForTask').checked;
             } else if (type === 'Task') {
                 event.taskGoal = parseInt(document.getElementById('taskGoal').value) || 0;
                 event.taskPoints = parseInt(document.getElementById('taskPoints').value) || 0;
@@ -356,6 +479,10 @@ function viewRegistrations(eventId) {
     html += '<th>報名時間</th>';
     html += '<th>狀態</th>';
     if (event.type === 'OnSite') {
+        // Hybrid 模式顯示參與方式
+        if (event.allowOnlineView) {
+            html += '<th>參與方式</th>';
+        }
         html += '<th>核准時間</th>';
         html += '<th>簽到狀態</th>';
         html += '<th>簽到時間</th>';
@@ -386,9 +513,24 @@ function viewRegistrations(eventId) {
         html += `<td><span class="status-badge status-${reg.status}">${statusText}</span>${statusInfo}</td>`;
 
         if (event.type === 'OnSite') {
+            // Hybrid 模式：顯示參與方式
+            if (event.allowOnlineView) {
+                const modeIcon = reg.participationMode === 'online' ? '🌐' : '📍';
+                const modeText = reg.participationMode === 'online' ? '線上' : '實體';
+                const modeColor = reg.participationMode === 'online' ? '#38b2ac' : '#667eea';
+                html += `<td style="color: ${modeColor};">${modeIcon} ${modeText}</td>`;
+            }
+
             html += `<td>${reg.approvedTime ? new Date(reg.approvedTime).toLocaleString('zh-TW') : '-'}</td>`;
-            html += `<td>${reg.checkedIn ? '✅ 已簽到' : '⏳ 未簽到'}</td>`;
-            html += `<td>${reg.checkedInTime ? new Date(reg.checkedInTime).toLocaleString('zh-TW') : '-'}</td>`;
+
+            // 簽到狀態：線上參與者顯示「免簽到」
+            if (event.allowOnlineView && reg.participationMode === 'online') {
+                html += `<td style="color: #38b2ac;">🌐 免簽到</td>`;
+                html += `<td>-</td>`;
+            } else {
+                html += `<td>${reg.checkedIn ? '✅ 已簽到' : '⏳ 未簽到'}</td>`;
+                html += `<td>${reg.checkedInTime ? new Date(reg.checkedInTime).toLocaleString('zh-TW') : '-'}</td>`;
+            }
         }
 
         html += `<td>${reg.isWinner ? '🎉 中獎' : '-'}</td>`;
@@ -494,6 +636,12 @@ function executeDraw(eventId) {
     const events = getEvents();
     const event = events.find(e => e.id === eventId);
     if (!event || event.type !== 'Online') return;
+
+    // 檢查是否已經執行過抽獎
+    if (event.lastDrawTime) {
+        alert(`此活動已於 ${new Date(event.lastDrawTime).toLocaleString('zh-TW')} 執行過抽獎！\n\n每個活動只能執行一次抽獎。`);
+        return;
+    }
 
     // 檢查報名截止時間
     if (event.registrationEndTime) {

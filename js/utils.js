@@ -17,13 +17,23 @@ function isEventExpired(event) {
         // Online 活動：如果已執行抽獎則視為過期
         return event.lastDrawTime !== undefined && event.lastDrawTime !== '';
     } else if (event.type === 'OnSite') {
-        // OnSite 活動：簽到結束時間已過
-        if (event.checkinEndTime) {
-            return now > new Date(event.checkinEndTime);
+        // OnSite 活動：使用最晚的時間來判定過期
+        const endTimes = [];
+
+        if (event.endTime) {
+            endTimes.push(new Date(event.endTime));
         }
-        // 如果沒有簽到時間，檢查報名結束時間
+        if (event.checkinEndTime) {
+            endTimes.push(new Date(event.checkinEndTime));
+        }
         if (event.registrationEndTime) {
-            return now > new Date(event.registrationEndTime);
+            endTimes.push(new Date(event.registrationEndTime));
+        }
+
+        if (endTimes.length > 0) {
+            // 使用最大（最晚）的時間作為活動結束判定
+            const latestEndTime = new Date(Math.max(...endTimes));
+            return now > latestEndTime;
         }
     }
     return false;

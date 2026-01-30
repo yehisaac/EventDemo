@@ -7,9 +7,6 @@
 
     <!-- 外部 CSS -->
     <link rel="stylesheet" href="css/styles.css">
-
-    <!-- QR Code Library -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -59,7 +56,32 @@
 
             <button class="btn btn-primary" onclick="showAddEventModal()">➕ 新增活動</button>
 
-            <div id="adminEventsList"></div>
+            <!-- 活動分類頁籤 -->
+            <div class="tabs-container">
+                <div class="tabs-nav">
+                    <button class="tab-button active" onclick="switchTab('online')">
+                        📡 線上活動 <span class="tab-badge" id="onlineCount">0</span>
+                    </button>
+                    <button class="tab-button" onclick="switchTab('onsite')">
+                        📍 實體活動 <span class="tab-badge" id="onsiteCount">0</span>
+                    </button>
+                    <button class="tab-button" onclick="switchTab('task')">
+                        🎯 任務活動 <span class="tab-badge" id="taskCount">0</span>
+                    </button>
+                </div>
+
+                <div id="tab-online" class="tab-content active">
+                    <div id="onlineEventsList"></div>
+                </div>
+
+                <div id="tab-onsite" class="tab-content">
+                    <div id="onsiteEventsList"></div>
+                </div>
+
+                <div id="tab-task" class="tab-content">
+                    <div id="taskEventsList"></div>
+                </div>
+            </div>
         </div>
 
         <!-- 使用者介面 -->
@@ -184,6 +206,29 @@
                     <small style="color: #718096;">啟用後，使用者需輸入簽到碼或掃描 QR Code 簽到</small>
                 </div>
 
+                <!-- Hybrid 混合模式（OnSite 專屬） -->
+                <div class="form-group event-field onsite-field hidden">
+                    <label style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="allowOnlineView" onchange="toggleOnlineLink()">
+                        <span>🌐 啟用 Hybrid 混合模式（線上＋實體）</span>
+                    </label>
+                    <small style="color: #718096;">允許使用者選擇線上或實體參與</small>
+                </div>
+
+                <div class="form-group event-field onsite-field hidden" id="onlineLinkField" style="display: none;">
+                    <label>線上連結：</label>
+                    <input type="text" id="onlineLink" placeholder="視訊會議、直播連結等">
+                    <small style="color: #718096;">線上參與者將看到此連結</small>
+                </div>
+
+                <div class="form-group event-field onsite-field hidden" id="countOnlineField" style="display: none;">
+                    <label style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="countOnlineForTask">
+                        <span>線上參與者計入任務統計</span>
+                    </label>
+                    <small style="color: #718096;">勾選後，線上參與者（無需簽到）也會計入任務累積</small>
+                </div>
+
                 <!-- Task 專屬欄位 -->
                 <div class="form-group event-field task-field hidden">
                     <label>任務開始時間：</label>
@@ -239,6 +284,9 @@
         </div>
     </div>
 
+    <!-- QR Code 庫（本地版本，必須在所有模組之前載入） -->
+    <script src="lib/qrcode.min.js"></script>
+
     <!-- JavaScript 模組載入 -->
     <script src="js/config.js"></script>
     <script src="js/storage.js"></script>
@@ -250,12 +298,24 @@
     <script src="js/admin.js"></script>
     <script src="js/user.js"></script>
 
-    <!-- QR Code 庫 -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-
     <!-- 初始化 -->
     <script>
         initStorage();
+
+        // Hybrid 模式欄位切換
+        function toggleOnlineLink() {
+            const allowOnlineView = document.getElementById('allowOnlineView').checked;
+            const onlineLinkField = document.getElementById('onlineLinkField');
+            const countOnlineField = document.getElementById('countOnlineField');
+
+            if (allowOnlineView) {
+                onlineLinkField.style.display = 'block';
+                countOnlineField.style.display = 'block';
+            } else {
+                onlineLinkField.style.display = 'none';
+                countOnlineField.style.display = 'none';
+            }
+        }
     </script>
 </body>
 </html>
